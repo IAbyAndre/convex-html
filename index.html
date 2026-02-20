@@ -3,46 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lista de Tareas</title>
+    <title>Chat Room</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="container">
-      <h1>📝 Lista de Tareas</h1>
-
-      <!-- Formulario para agregar tarea -->
-      <div class="input-section">
-        <input
-          type="text"
-          id="taskInput"
-          placeholder="Escribe una tarea..."
-          maxlength="200"
-        />
-        <button id="addBtn">Agregar</button>
-      </div>
-
-      <!-- Filtros -->
-      <div class="filters">
-        <button class="filter-btn active" data-filter="all">Todas</button>
-        <button class="filter-btn" data-filter="pending">Pendientes</button>
-        <button class="filter-btn" data-filter="completed">Completadas</button>
-      </div>
-
-      <!-- Contador -->
-      <div class="stats">
-        <span id="statsText">Cargando...</span>
-      </div>
-
-      <!-- Lista de tareas -->
-      <ul id="taskList"></ul>
-
-      <!-- Mensaje si no hay tareas -->
-      <div id="emptyMsg" class="empty-msg hidden">
-        ¡No hay tareas aquí! 🎉
+    <div id="aliasScreen" class="alias-screen">
+      <div class="alias-box">
+        <h1>💬 Chat Room</h1>
+        <p>Elige un alias para entrar</p>
+        <input type="text" id="aliasInput" placeholder="Tu nombre..." maxlength="30" autocomplete="off" />
+        <button id="enterBtn">Entrar al chat</button>
       </div>
     </div>
 
-    <!-- Convex CDN -->
+    <div id="chatScreen" class="chat-screen hidden">
+      <div class="chat-header">
+        <span class="chat-title">💬 Chat Room</span>
+        <div class="header-right">
+          <span class="online-badge">🟢 <span id="onlineCount">1</span> en línea</span>
+          <button id="logoutBtn" title="Cambiar alias">✖</button>
+        </div>
+      </div>
+      <div id="messageList" class="message-list"></div>
+      <div class="chat-input">
+        <input type="text" id="msgInput" placeholder="Escribe un mensaje..." maxlength="500" autocomplete="off" />
+        <button id="sendBtn">➤</button>
+      </div>
+    </div>
+
     <script src="https://unpkg.com/convex@latest/dist/browser.bundle.js"></script>
     <script src="app.js"></script>
   </body>

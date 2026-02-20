@@ -1,52 +1,46 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
-// Obtener todas las tareas ordenadas por más reciente
-export const getTasks = query({
+const ONLINE_THRESHOLD = 60000;
+
+export const getMessages = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db
-      .query("tasks")
-      .order("desc")
-      .collect();
+    return await ctx.db.query("messages").order("asc").collect();
   },
 });
 
-// Crear una tarea
-export const createTask = mutation({
-  args: { text: v.string() },
+export const sendMessage = mutation({
+  args: { alias: v.string(), text: v.string() },
   handler: async (ctx, args) => {
-    await ctx.db.insert("tasks", {
-      text: args.text,
-      completed: false,
+    await ctx.db.insert("messages", {
+      alias: args.alias,
+      text: args.text.trim(),
       createdAt: Date.now(),
     });
   },
 });
 
-// Marcar tarea como completada / no completada
-export const toggleTask = mutation({
-  args: { id: v.id("tasks") },
+export const ping = mutation({
+  args: { alias: v.string() },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get(args.id);
-    await ctx.db.patch(args.id, {
-      completed: !task.completed,
-    });
+    const existing = await ctx.db
+      .query("presence")
+      .withIndex("by_alias", (q) => q.eq("alias", args.alias))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, { lastSeen: Date.now() });
+    } else {
+      await ctx.db.insert("presence", { alias: args.alias, lastSeen: Date.now() });
+    }
   },
 });
 
-// Eliminar una tarea
-export const deleteTask = mutation({
-  args: { id: v.id("tasks") },
-  handler: async (ctx, args) => {
-    await ctx.db.delete(args.id);
-  },
-});
-
-// Editar el texto de una tarea
-export const editTask = mutation({
-  args: { id: v.id("tasks"), text: v.string() },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { text: args.text });
+export const getOnlineCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - ONLINE_THRESHOLD;
+    const all = await ctx.db.query("presence").collect();
+    return all.filter((p) => p.lastSeen > cutoff).length;
   },
 });

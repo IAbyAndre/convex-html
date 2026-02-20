@@ -2,159 +2,136 @@ const CONVEX_URL = "https://usable-tortoise-739.eu-west-1.convex.cloud";
 
 const client = new convex.ConvexClient(CONVEX_URL);
 
-// Estado local
-let allTasks = [];
-let currentFilter = "all";
+// ── STATE ─────────────────────────────────────────
+let myAlias = localStorage.getItem("chatAlias") || null;
+let lastRenderedDate = null;
 
-// Referencias DOM
-const taskInput = document.getElementById("taskInput");
-const addBtn = document.getElementById("addBtn");
-const taskList = document.getElementById("taskList");
-const emptyMsg = document.getElementById("emptyMsg");
-const statsText = document.getElementById("statsText");
-const filterBtns = document.querySelectorAll(".filter-btn");
+// ── DOM ───────────────────────────────────────────
+const aliasScreen = document.getElementById("aliasScreen");
+const chatScreen  = document.getElementById("chatScreen");
+const aliasInput  = document.getElementById("aliasInput");
+const enterBtn    = document.getElementById("enterBtn");
+const msgInput    = document.getElementById("msgInput");
+const sendBtn     = document.getElementById("sendBtn");
+const messageList = document.getElementById("messageList");
+const onlineCount = document.getElementById("onlineCount");
+const logoutBtn   = document.getElementById("logoutBtn");
 
-// ─────────────────────────────
-// SUSCRIPCIÓN EN TIEMPO REAL
-// ─────────────────────────────
-client.onUpdate("tasks:getTasks", {}, (tasks) => {
-  allTasks = tasks || [];
-  renderTasks();
-});
+// ── INIT ─────────────────────────────────────────
+if (myAlias) {
+  showChat();
+}
 
-// ─────────────────────────────
-// RENDERIZAR TAREAS
-// ─────────────────────────────
-function renderTasks() {
-  const filtered = allTasks.filter((task) => {
-    if (currentFilter === "pending") return !task.completed;
-    if (currentFilter === "completed") return task.completed;
-    return true;
+// ── ENTER CHAT ────────────────────────────────────
+function showChat() {
+  aliasScreen.classList.add("hidden");
+  chatScreen.classList.remove("hidden");
+  msgInput.focus();
+
+  client.onUpdate("tasks:getMessages", {}, (messages) => {
+    renderMessages(messages || []);
   });
 
-  taskList.innerHTML = "";
+  client.onUpdate("tasks:getOnlineCount", {}, (count) => {
+    onlineCount.textContent = count ?? 1;
+  });
 
-  if (filtered.length === 0) {
-    emptyMsg.classList.remove("hidden");
-  } else {
-    emptyMsg.classList.add("hidden");
-    filtered.forEach((task) => {
-      taskList.appendChild(createTaskElement(task));
+  pingPresence();
+  setInterval(pingPresence, 30000);
+}
+
+async function pingPresence() {
+  if (!myAlias) return;
+  await client.mutation("tasks:ping", { alias: myAlias });
+}
+
+// ── RENDER MESSAGES ───────────────────────────────
+function renderMessages(messages) {
+  lastRenderedDate = null;
+  const wasAtBottom =
+    messageList.scrollHeight - messageList.scrollTop <= messageList.clientHeight + 60;
+
+  messageList.innerHTML = "";
+
+  messages.forEach((msg) => {
+    const dateStr = new Date(msg.createdAt).toLocaleDateString("es", {
+      weekday: "long", day: "numeric", month: "long",
     });
-  }
-
-  const total = allTasks.length;
-  const done = allTasks.filter((t) => t.completed).length;
-  statsText.textContent = `${done} de ${total} completadas`;
-}
-
-// ─────────────────────────────
-// CREAR ELEMENTO DE TAREA
-// ─────────────────────────────
-function createTaskElement(task) {
-  const li = document.createElement("li");
-  li.className = `task-item ${task.completed ? "completed" : ""}`;
-  li.dataset.id = task._id;
-
-  const checkbox = document.createElement("input");
-  checkbox.type = "checkbox";
-  checkbox.className = "task-checkbox";
-  checkbox.checked = task.completed;
-  checkbox.addEventListener("change", () => toggleTask(task._id));
-
-  const span = document.createElement("span");
-  span.className = `task-text ${task.completed ? "done" : ""}`;
-  span.contentEditable = "false";
-  span.textContent = task.text;
-
-  const editBtn = document.createElement("button");
-  editBtn.className = "btn-edit";
-  editBtn.title = "Editar";
-  editBtn.textContent = "✏️";
-  editBtn.addEventListener("click", () => startEdit(span, task._id, editBtn));
-
-  const deleteBtn = document.createElement("button");
-  deleteBtn.className = "btn-delete";
-  deleteBtn.title = "Eliminar";
-  deleteBtn.textContent = "🗑️";
-  deleteBtn.addEventListener("click", () => deleteTask(task._id));
-
-  li.appendChild(checkbox);
-  li.appendChild(span);
-  li.appendChild(editBtn);
-  li.appendChild(deleteBtn);
-
-  return li;
-}
-
-// ─────────────────────────────
-// EDICIÓN INLINE
-// ─────────────────────────────
-function startEdit(span, id, btn) {
-  if (span.contentEditable === "true") {
-    const newText = span.textContent.trim();
-    if (newText.length > 0) {
-      client.mutation("tasks:editTask", { id, text: newText });
-    } else {
-      span.textContent = allTasks.find((t) => t._id === id)?.text || "";
+    if (dateStr !== lastRenderedDate) {
+      const sep = document.createElement("div");
+      sep.className = "date-sep";
+      sep.textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+      messageList.appendChild(sep);
+      lastRenderedDate = dateStr;
     }
-    span.contentEditable = "false";
-    btn.textContent = "✏️";
-  } else {
-    span.contentEditable = "true";
-    span.focus();
-    btn.textContent = "💾";
-    const range = document.createRange();
-    range.selectNodeContents(span);
-    range.collapse(false);
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
+
+    const isMine = msg.alias === myAlias;
+    const row = document.createElement("div");
+    row.className = `msg-row ${isMine ? "mine" : "theirs"}`;
+
+    if (!isMine) {
+      const aliasEl = document.createElement("div");
+      aliasEl.className = "msg-alias";
+      aliasEl.textContent = msg.alias;
+      row.appendChild(aliasEl);
+    }
+
+    const bubble = document.createElement("div");
+    bubble.className = "msg-bubble";
+    bubble.textContent = msg.text;
+    row.appendChild(bubble);
+
+    const time = document.createElement("div");
+    time.className = "msg-time";
+    time.textContent = new Date(msg.createdAt).toLocaleTimeString("es", {
+      hour: "2-digit", minute: "2-digit",
+    });
+    row.appendChild(time);
+
+    messageList.appendChild(row);
+  });
+
+  if (wasAtBottom) {
+    messageList.scrollTop = messageList.scrollHeight;
   }
 }
 
-// ─────────────────────────────
-// OPERACIONES CONVEX
-// ─────────────────────────────
-async function addTask() {
-  const text = taskInput.value.trim();
-  if (!text) return;
-
-  addBtn.disabled = true;
+// ── SEND ─────────────────────────────────────────
+async function sendMessage() {
+  const text = msgInput.value.trim();
+  if (!text || !myAlias) return;
+  sendBtn.disabled = true;
   try {
-    await client.mutation("tasks:createTask", { text });
-    taskInput.value = "";
-    taskInput.focus();
+    await client.mutation("tasks:sendMessage", { alias: myAlias, text });
+    msgInput.value = "";
+    msgInput.focus();
   } catch (e) {
-    alert("Error al agregar la tarea: " + e.message);
+    alert("Error: " + e.message);
   } finally {
-    addBtn.disabled = false;
+    sendBtn.disabled = false;
   }
 }
 
-async function toggleTask(id) {
-  await client.mutation("tasks:toggleTask", { id });
-}
-
-async function deleteTask(id) {
-  if (!confirm("¿Eliminar esta tarea?")) return;
-  await client.mutation("tasks:deleteTask", { id });
-}
-
-// ─────────────────────────────
-// EVENTOS
-// ─────────────────────────────
-addBtn.addEventListener("click", addTask);
-
-taskInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") addTask();
+// ── EVENTS ────────────────────────────────────────
+enterBtn.addEventListener("click", () => {
+  const alias = aliasInput.value.trim();
+  if (!alias) { aliasInput.focus(); return; }
+  myAlias = alias;
+  localStorage.setItem("chatAlias", alias);
+  showChat();
 });
 
-filterBtns.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    filterBtns.forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    currentFilter = btn.dataset.filter;
-    renderTasks();
-  });
+aliasInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") enterBtn.click();
+});
+
+sendBtn.addEventListener("click", sendMessage);
+
+msgInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) sendMessage();
+});
+
+logoutBtn.addEventListener("click", () => {
+  localStorage.removeItem("chatAlias");
+  location.reload();
 });
