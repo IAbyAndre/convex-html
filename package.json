@@ -1,0 +1,10 @@
+{
+  "name": "todo-app-convex",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npx convex dev"
+  },
+  "dependencies": {
+    "convex": "^1.19.0"
+  }
+}
