@@ -3,10 +3,12 @@
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Prevent overscroll bounce pushing layout on iOS */
+  overscroll-behavior: none;
 }
 
 /* ALIAS SCREEN */
@@ -15,7 +17,7 @@ body {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
   padding: 16px;
 }
 
@@ -40,6 +42,8 @@ body {
   border: 2px solid #e0e0e0;
   border-radius: 12px;
   font-size: 1rem;
+  /* Prevent iOS auto-zoom on focus (needs ≥16px) */
+  -webkit-text-size-adjust: 100%;
   outline: none;
   text-align: center;
   transition: border-color 0.2s;
@@ -63,7 +67,8 @@ body {
 .chat-screen {
   width: 100%;
   max-width: 680px;
-  height: 100vh;
+  /* dvh accounts for mobile browser chrome (address bar, bottom nav) */
+  height: 100dvh;
   max-height: 820px;
   background: #f0ece4;
   border-radius: 20px;
@@ -117,6 +122,9 @@ body {
   flex-direction: column;
   gap: 6px;
   scroll-behavior: smooth;
+  /* Smooth momentum scroll on iOS */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 .message-list::-webkit-scrollbar { width: 4px; }
 .message-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
@@ -176,6 +184,8 @@ body {
   display: flex;
   gap: 10px;
   padding: 14px 16px;
+  /* Reserve space for iOS home indicator / Android nav bar */
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
   background: white;
   flex-shrink: 0;
   border-top: 1px solid #e8e8e8;
@@ -186,7 +196,8 @@ body {
   padding: 12px 16px;
   border: 2px solid #e0e0e0;
   border-radius: 24px;
-  font-size: 0.95rem;
+  /* 16px prevents iOS auto-zoom on focus */
+  font-size: 16px;
   outline: none;
   transition: border-color 0.2s;
   background: #f9f9f9;
@@ -208,3 +219,44 @@ body {
 .chat-input button:hover { background: #5567d5; transform: scale(1.05); }
 
 .hidden { display: none !important; }
+
+/* ── MOBILE ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  body {
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  /* Alias screen: tighter padding */
+  .alias-screen {
+    padding: 24px 16px;
+    align-items: center;
+  }
+
+  .alias-box {
+    padding: 32px 24px;
+    border-radius: 16px;
+    gap: 14px;
+  }
+
+  .alias-box h1 { font-size: 1.7rem; }
+
+  /* Chat fills the full screen, no rounded corners or margin */
+  .chat-screen {
+    margin: 0;
+    border-radius: 0;
+    max-height: none;
+    height: 100dvh;
+  }
+
+  /* Slightly wider bubbles on small screens */
+  .msg-row {
+    max-width: 82%;
+  }
+
+  /* Larger tap targets for header buttons */
+  #logoutBtn {
+    font-size: 1.2rem;
+    padding: 4px 8px;
+  }
+}
